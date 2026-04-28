@@ -5,11 +5,7 @@ A real-time visualizer for one of computer science's most surprising emergent sy
 ---
 
 ## Demo
-
-<!-- Record a GIF and drop it here. Tools: ScreenToGif (Windows), Gifski, or Kap (macOS) -->
-<!-- ![Langton's Ant demo](demo.gif) -->
-
-*GIF coming soon*
+![Langton's Ant demo](output.gif)
 
 ---
 
@@ -22,10 +18,10 @@ An ant lives on an infinite grid of black and white cells and follows exactly tw
 
 That's the entire system. What makes it remarkable is what happens over time:
 
-1. **Steps 1 – ~9,999** — the ant produces what looks like complete chaos, wandering with no discernible structure
-2. **Around step 10,000** — with no warning, it spontaneously begins constructing a perfectly regular diagonal corridor called the **highway**, and continues indefinitely
+1. **Early steps** — the ant produces what looks like complete chaos, wandering with no discernible structure
+2. **On average after 10,000 steps** — with no warning, it spontaneously begins constructing a perfectly regular diagonal corridor called the **highway**, and continues indefinitely
 
-Nobody has ever formally proved *why* the highway emerges. It has been observed in every simulation ever run, but a mathematical explanation remains an open problem.
+The exact step at which the highway emerges varies each run depending on the random starting conditions. Nobody has ever formally proved *why* the highway emerges at all, let alone *when* — it has been observed in every simulation ever run, but a mathematical explanation remains an open problem.
 
 ---
 
@@ -57,7 +53,8 @@ Then install the correct Python version and set up a virtual environment:
 pyenv install 3.10.10
 pyenv local 3.10.10
 
-python -m venv .venv
+pip install virtualenv
+virtualenv .venv
 source .venv/bin/activate      # macOS / Linux
 # .venv\Scripts\activate       # Windows
 
@@ -89,7 +86,7 @@ All parameters are at the top of `main.py`:
 
 | Constant            | Default | Description                             |
 | ------------------- | ------- | --------------------------------------- |
-| `CELL_SIZE`         | `5`     | Pixels per grid cell                    |
+| `CELL_SIZE`         | `6`     | Pixels per grid cell                    |
 | `TARGET_FPS`        | `60`    | Render framerate cap                    |
 | `STEPS_PER_FRAME`   | `10`    | Ant steps per rendered frame            |
 | `NUM_NOISE_CELLS`   | `200`   | Random cells pre-flipped on reset       |
