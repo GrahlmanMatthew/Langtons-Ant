@@ -17,7 +17,7 @@ from collections import defaultdict
 
 # ── Tunables ─────────────────────────────────────────────────────────────────
 # Window size is set at runtime from the monitor resolution
-CELL_SIZE          = 5         # pixels per grid cell
+CELL_SIZE          = 5          # pixels per grid cell (larger = more zoomed in)
 TARGET_FPS         = 60
 STEPS_PER_FRAME    = 10         # ant moves this many steps each rendered frame
 SPEED_STEP         = 5          # how much +/- changes steps-per-frame
@@ -38,8 +38,6 @@ UI_COLOUR          = (180, 180, 220)
 ACCENT_COLOUR      = (255, 200,  50)
 HIGHWAY_COLOUR     = (80,  200, 255)   # colour flash once highway emerges
 
-HIGHWAY_THRESHOLD  = 10_000    # steps at which the highway reliably starts
-
 # ── Direction helpers ─────────────────────────────────────────────────────────
 # Directions: 0=Up, 1=Right, 2=Down, 3=Left
 DIR_DELTA = [(0, -1), (1, 0), (0, 1), (-1, 0)]
@@ -48,26 +46,76 @@ TURN_RIGHT = 1
 TURN_LEFT  = -1
 
 
+# The highway repeats with an exact period of 104 steps.
+# We confirm it by checking that the ant's position 104 steps ago matches
+# a consistent offset — repeated across multiple cycles.
+HIGHWAY_PERIOD        = 104
+HIGHWAY_CYCLES        = 5    # require this many consecutive clean cycles
+
+
 # ── Ant state ────────────────────────────────────────────────────────────────
 class Ant:
     def __init__(self, x: int, y: int, direction: int = 0):
-        self.x     = x
-        self.y     = y
-        self.dir   = direction
-        self.steps = 0
+        self.x        = x
+        self.y        = y
+        self.dir      = direction
+        self.steps    = 0
+        self.highway  = False
+        self._hw_step = 0
+        # Ring buffer: store enough history to check HIGHWAY_CYCLES full periods
+        self._buf_size = HIGHWAY_PERIOD * (HIGHWAY_CYCLES + 1)
+        self._history  = []   # list of (x, y)
 
     def step(self, grid: dict) -> None:
         cell = (self.x, self.y)
-        if grid[cell]:                # white cell → turn right, flip black
+        if grid[cell]:
             self.dir = (self.dir + TURN_RIGHT) % 4
             grid[cell] = False
-        else:                         # black cell → turn left, flip white
+        else:
             self.dir = (self.dir + TURN_LEFT) % 4
             grid[cell] = True
-        dx, dy     = DIR_DELTA[self.dir]
-        self.x    += dx
-        self.y    += dy
+        dx, dy  = DIR_DELTA[self.dir]
+        self.x += dx
+        self.y += dy
         self.steps += 1
+
+        if not self.highway:
+            self._history.append((self.x, self.y))
+            if len(self._history) > self._buf_size:
+                self._history.pop(0)
+            self._detect_highway()
+
+    def _detect_highway(self) -> None:
+        """
+        Confirm the highway by verifying that the ant's displacement over
+        exactly one period (104 steps) is identical for HIGHWAY_CYCLES
+        consecutive periods. During chaotic phase the per-period displacement
+        is erratic; on the highway it is perfectly constant.
+        """
+        needed = HIGHWAY_PERIOD * HIGHWAY_CYCLES
+        if len(self._history) < needed + HIGHWAY_PERIOD:
+            return
+
+        # Compute displacement vectors for the last HIGHWAY_CYCLES periods
+        displacements = []
+        h = self._history
+        n = len(h)
+        for i in range(HIGHWAY_CYCLES):
+            start = n - needed + i * HIGHWAY_PERIOD - HIGHWAY_PERIOD
+            end   = start + HIGHWAY_PERIOD
+            if start < 0:
+                return
+            dx = h[end][0] - h[start][0]
+            dy = h[end][1] - h[start][1]
+            displacements.append((dx, dy))
+
+        # All displacement vectors must be identical and non-zero
+        first = displacements[0]
+        if first == (0, 0):
+            return
+        if all(d == first for d in displacements):
+            self.highway  = True
+            self._hw_step = self.steps
 
 
 # ── Rendering helpers ─────────────────────────────────────────────────────────
@@ -92,14 +140,13 @@ def draw_cells(surface: pygame.Surface,
                offset_x: int,
                offset_y: int,
                steps: int,
+               highway: bool,
+               hw_step: int,
                window_w: int,
                window_h: int) -> None:
-    cols_visible = window_w // CELL_SIZE + 2
-    rows_visible = window_h // CELL_SIZE + 2
-
-    # Choose white-cell tint based on highway phase
-    if steps >= HIGHWAY_THRESHOLD:
-        t = min(1.0, (steps - HIGHWAY_THRESHOLD) / 2000)
+    # Choose white-cell tint based on detected highway phase
+    if highway:
+        t = min(1.0, (steps - hw_step) / 2000)
         r = int(WHITE_CELL[0] * (1 - t) + HIGHWAY_COLOUR[0] * t)
         g = int(WHITE_CELL[1] * (1 - t) + HIGHWAY_COLOUR[1] * t)
         b = int(WHITE_CELL[2] * (1 - t) + HIGHWAY_COLOUR[2] * t)
@@ -145,6 +192,8 @@ def draw_ui(surface: pygame.Surface,
             spf: int,
             paused: bool,
             show_steps: bool,
+            highway: bool,
+            hw_step: int,
             window_w: int,
             window_h: int) -> None:
     # Step counter
@@ -154,7 +203,7 @@ def draw_ui(surface: pygame.Surface,
         sub = font_small.render("steps", True, UI_COLOUR)
         surface.blit(sub, (14, 8 + label.get_height()))
 
-    # Speed + FPS (bottom left)
+    # Speed (bottom left)
     if paused:
         speed_txt = font_small.render("⏸  PAUSED", True, UI_COLOUR)
     else:
@@ -167,9 +216,9 @@ def draw_ui(surface: pygame.Surface,
         True, (80, 80, 110))
     surface.blit(hint, (window_w // 2 - hint.get_width() // 2, window_h - 22))
 
-    # Highway banner (top right)
-    if steps >= HIGHWAY_THRESHOLD:
-        banner_alpha = min(255, int(255 * (steps - HIGHWAY_THRESHOLD) / 500))
+    # Highway banner (top right) — shown only after actual detection
+    if highway:
+        banner_alpha = min(255, int(255 * (steps - hw_step) / 500))
         banner = font_small.render("◆  HIGHWAY EMERGED  ◆", True, HIGHWAY_COLOUR)
         banner.set_alpha(banner_alpha)
         surface.blit(banner, (window_w - banner.get_width() - 12, 12))
@@ -189,11 +238,11 @@ def make_random_grid(spread: int) -> defaultdict:
 def main() -> None:
     pygame.init()
 
-    # Detect monitor resolution and go fullscreen
+    # Detect monitor resolution — borderless windowed (no exclusive fullscreen)
     info     = pygame.display.Info()
     WINDOW_W = info.current_w
     WINDOW_H = info.current_h
-    screen   = pygame.display.set_mode((WINDOW_W, WINDOW_H), pygame.FULLSCREEN)
+    screen   = pygame.display.set_mode((WINDOW_W, WINDOW_H), pygame.NOFRAME)
     pygame.display.set_caption("Langton's Ant")
     clock    = pygame.time.Clock()
 
@@ -260,10 +309,12 @@ def main() -> None:
         # ── Draw ─────────────────────────────────────────────────────────────
         screen.fill(BG_COLOUR)
         draw_grid_lines(screen, WINDOW_W, WINDOW_H)
-        draw_cells(screen, grid, offset_x, offset_y, ant.steps, WINDOW_W, WINDOW_H)
+        draw_cells(screen, grid, offset_x, offset_y,
+                   ant.steps, ant.highway, ant._hw_step, WINDOW_W, WINDOW_H)
         draw_ant(screen, ant, offset_x, offset_y)
         draw_ui(screen, font_large, font_small,
-                ant.steps, spf, paused, show_steps, WINDOW_W, WINDOW_H)
+                ant.steps, spf, paused, show_steps,
+                ant.highway, ant._hw_step, WINDOW_W, WINDOW_H)
 
         pygame.display.flip()
 
