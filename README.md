@@ -86,7 +86,7 @@ All parameters are at the top of `main.py`:
 
 | Constant            | Default | Description                             |
 | ------------------- | ------- | --------------------------------------- |
-| `CELL_SIZE`         | `6`     | Pixels per grid cell                    |
+| `CELL_SIZE`         | `5`     | Pixels per grid cell                    |
 | `TARGET_FPS`        | `60`    | Render framerate cap                    |
 | `STEPS_PER_FRAME`   | `10`    | Ant steps per rendered frame            |
 | `NUM_NOISE_CELLS`   | `200`   | Random cells pre-flipped on reset       |
