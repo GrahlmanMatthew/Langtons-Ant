@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 
 def initialize_display() -> tuple[pygame.Surface, int, int, pygame.font.Font, pygame.font.Font]:
     pygame.init()
-    info = pygame.display.Info()
-    window_w, window_h = info.current_w, info.current_h
-    screen = pygame.display.set_mode((window_w, window_h), pygame.NOFRAME)
+    window_w, window_h = 1280, 720
+    screen = pygame.display.set_mode((window_w, window_h))
     pygame.display.set_caption("Langton's Ant")
     try:
         font_large = pygame.font.SysFont("monospace", 28, bold=True)
