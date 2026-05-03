@@ -1,64 +1,65 @@
-# 🐜 Langton's Ant
+# Langton's Ant
 
-A real-time visualizer for one of computer science's most surprising emergent systems — built with Python and Pygame.
+A real-time visualiser for one of computer science's most surprising emergent systems — built with Python and Pygame.
+
+![CI](https://github.com/GrahlmanMatthew/Langtons-Ant/actions/workflows/ci.yml/badge.svg)
+![GitHub release](https://img.shields.io/github/v/release/GrahlmanMatthew/Langtons-Ant)
 
 ---
 
 ## Demo
-![Langton's Ant demo](output.gif)
+
+![Langton's Ant demo](output/output.gif)
 
 ---
 
-## What is Langton's Ant?
+## How it works
 
 An ant lives on an infinite grid of black and white cells and follows exactly two rules:
 
-- **On a white cell** — turn right, flip the cell to black, move forward
-- **On a black cell** — turn left, flip the cell to white, move forward
+- **On a white cell** — turn right, flip the cell to black, move forward one step
+- **On a black cell** — turn left, flip the cell to white, move forward one step
 
-That's the entire system. What makes it remarkable is what happens over time:
+That is the entire system. What makes it remarkable is what happens over time:
 
 1. **Early steps** — the ant produces what looks like complete chaos, wandering with no discernible structure
-2. **On average after 10,000 steps** — with no warning, it spontaneously begins constructing a perfectly regular diagonal corridor called the **highway**, and continues indefinitely
+2. **Around 10,000 steps** — with no warning, it spontaneously begins constructing a perfectly regular diagonal corridor called the **highway**, and continues indefinitely
 
-The exact step at which the highway emerges varies each run depending on the random starting conditions. Nobody has ever formally proved *why* the highway emerges at all, let alone *when* — it has been observed in every simulation ever run, but a mathematical explanation remains an open problem.
+The exact step at which the highway emerges varies each run depending on the random starting conditions. Nobody has formally proved *why* the highway emerges at all, let alone *when* — it has been observed in every simulation ever run, but a mathematical explanation remains an open problem.
 
----
-
-## Features
-
-- Borderless windowed rendering sized to your monitor resolution
-- Randomised starting conditions on each reset — different initial noise and ant direction — so the chaotic phase looks unique every run
-- Live step counter with a highway detection banner when the diagonal corridor kicks in
-- Smooth colour transition from white → cyan as the highway phase begins
-- Adjustable simulation speed
+Highway detection is implemented by tracking displacement vectors over the repeating 104-step period. Once five consecutive periods produce identical displacements, the highway is confirmed and the visualiser transitions the cell colour from white to cyan.
 
 ---
 
-## Setup
+## Prerequisites
 
-This project uses Python 3.10.10. If you don't have pyenv installed, get it first:
+- [uv](https://docs.astral.sh/uv/) — Python version and package manager
 
-```bash
-# macOS
-brew install pyenv
+Install `uv` once (run this in PowerShell):
 
-# Linux
-curl https://pyenv.run | bash
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-Then install the correct Python version and set up a virtual environment:
+---
+
+## Installation and setup
 
 ```bash
-pyenv install 3.10.10
-pyenv local 3.10.10
+git clone https://github.com/GrahlmanMatthew/Langtons-Ant.git
+cd Langtons-Ant
+uv venv
+uv pip install -e .
+```
 
-pip install virtualenv
-virtualenv .venv
-source .venv/bin/activate      # macOS / Linux
-# .venv\Scripts\activate       # Windows
+Set up pre-commit hooks:
 
-pip install -r requirements.txt
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit install --hook-type commit-msg
+detect-secrets scan > .secrets.baseline
+git add .secrets.baseline
 ```
 
 ---
@@ -66,29 +67,46 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python main.py
+langtons-ant
 ```
 
-| Key         | Action                                    |
-| ----------- | ----------------------------------------- |
-| `SPACE`     | Pause / resume                            |
-| `R`         | Reset with new random starting conditions |
-| `+` / `=`   | Speed up                                  |
-| `-`         | Slow down                                 |
-| `S`         | Toggle step counter                       |
-| `ESC` / `Q` | Quit                                      |
+| Key | Action |
+| --- | --- |
+| `SPACE` | Pause / resume |
+| `R` | Reset with new random starting conditions |
+| `+` / `=` | Speed up |
+| `-` | Slow down |
+| `S` | Toggle step counter |
+| `ESC` / `Q` | Quit |
 
 ---
 
-## Tuning
+## Configuration
 
-All parameters are at the top of `main.py`:
+All parameters can be overridden via environment variables. Copy `.env.example` to `.env` and edit as needed.
 
-| Constant            | Default | Description                             |
-| ------------------- | ------- | --------------------------------------- |
-| `CELL_SIZE`         | `5`     | Pixels per grid cell                    |
-| `TARGET_FPS`        | `60`    | Render framerate cap                    |
-| `STEPS_PER_FRAME`   | `10`    | Ant steps per rendered frame            |
-| `NUM_NOISE_CELLS`   | `200`   | Random cells pre-flipped on reset       |
-| `RANDOM_DIRECTIONS` | `True`  | Randomise ant's starting direction      |
-| `HIGHWAY_THRESHOLD` | `10000` | Step count at which highway tint begins |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `TARGET_FPS` | `60` | Render framerate cap |
+| `STEPS_PER_FRAME` | `10` | Ant steps per rendered frame (starting speed) |
+| `SPEED_STEP` | `5` | How much `+`/`-` changes steps per frame |
+| `MAX_SPF` | `500` | Maximum steps per frame |
+| `MIN_SPF` | `1` | Minimum steps per frame |
+| `NUM_NOISE_CELLS` | `200` | Random cells pre-flipped on each reset |
+| `NOISE_SPREAD_DIVISOR` | `8` | Controls noise radius: `min(w,h) ÷ (CELL_SIZE × divisor)` |
+| `RANDOM_DIRECTIONS` | `true` | Randomise ant's starting direction on reset |
+
+`CELL_SIZE` (pixels per grid cell, default `5`) is a fixed constant in `src/langtons_ant/config/constants.py`.
+
+---
+
+## Running the tests
+
+```bash
+uv pip install -e ".[dev]"
+pytest
+```
+
+---
+
+© 2025 Matthew E. Grahlman. All rights reserved.

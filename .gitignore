@@ -1,3 +1,21 @@
+# Secrets and environment
+.env
+.env.local
+.env.*.local
+
+# Generated output
+output/*
+!output/.gitkeep
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
