@@ -1,4 +1,4 @@
-# Langton's Ant
+# 🐜 Langton's Ant
 
 A real-time visualiser for one of computer science's most surprising emergent systems — built with Python and Pygame.
 
@@ -67,7 +67,7 @@ git add .secrets.baseline
 ## Usage
 
 ```bash
-langtons-ant
+uv run langtons-ant
 ```
 
 | Key | Action |
